@@ -72,6 +72,37 @@ function makeMove(row, col, symbol) {
   if (cell) cell.textContent = symbol;
 }
 
+// ★ 勝敗判定関数（直近の手から各方向をチェック）
+function checkWin(row, col, symbol) {
+  const directions = [
+    { dr: 0, dc: 1 },
+    { dr: 1, dc: 0 },
+    { dr: 1, dc: 1 },
+    { dr: 1, dc: -1 }
+  ];
+  
+  for (const { dr, dc } of directions) {
+    let count = 1;
+    count += countDirection(row, col, dr, dc, symbol);
+    count += countDirection(row, col, -dr, -dc, symbol);
+    if (count >= 5) return true;
+  }
+  return false;
+}
+
+// 指定方向の連続数を返す（盤面全体の石を参照）
+function countDirection(row, col, dr, dc, symbol) {
+  let r = row + dr;
+  let c = col + dc;
+  let count = 0;
+  while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === symbol) {
+    count++;
+    r += dr;
+    c += dc;
+  }
+  return count;
+}
+
 // AIの手番
 function aiMove() {
   if (gameOver) return;
@@ -212,251 +243,4 @@ function aiMinimaxMoveDepth4() {
   let bestMove = null;
   const depth = 4;
   
-  for (let i = 0; i < BOARD_SIZE; i++) {
-    for (let j = 0; j < BOARD_SIZE; j++) {
-      if (board[i][j] === null) {
-        board[i][j] = aiSymbol;
-        let score = minimax(depth - 1, false, -Infinity, Infinity);
-        board[i][j] = null;
-        if (score > bestScore) {
-          bestScore = score;
-          bestMove = { row: i, col: j };
-        }
-      }
-    }
-  }
-  
-  if (bestMove) {
-    makeMove(bestMove.row, bestMove.col, aiSymbol);
-    if (checkWin(bestMove.row, bestMove.col, aiSymbol)) {
-      messageP.textContent = 'AIの勝ち！';
-      gameOver = true;
-    }
-  }
-}
-
-// ミニマックス法＋αβ枝刈り（共通関数）
-function minimax(depth, isMaximizing, alpha, beta) {
-  if (depth === 0 || isTerminal()) {
-    return evaluateBoard();
-  }
-  
-  if (isMaximizing) {
-    let maxEval = -Infinity;
-    for (let i = 0; i < BOARD_SIZE; i++) {
-      for (let j = 0; j < BOARD_SIZE; j++) {
-        if (board[i][j] === null) {
-          board[i][j] = aiSymbol;
-          let eval = minimax(depth - 1, false, alpha, beta);
-          board[i][j] = null;
-          maxEval = Math.max(maxEval, eval);
-          alpha = Math.max(alpha, eval);
-          if (beta <= alpha) break;
-        }
-      }
-    }
-    return maxEval;
-  } else {
-    let minEval = Infinity;
-    for (let i = 0; i < BOARD_SIZE; i++) {
-      for (let j = 0; j < BOARD_SIZE; j++) {
-        if (board[i][j] === null) {
-          board[i][j] = playerSymbol;
-          let eval = minimax(depth - 1, true, alpha, beta);
-          board[i][j] = null;
-          minEval = Math.min(minEval, eval);
-          beta = Math.min(beta, eval);
-          if (beta <= alpha) break;
-        }
-      }
-    }
-    return minEval;
-  }
-}
-
-// ★ レベル5：Monte Carlo Tree Search (MCTS) AI
-function aiMctsMove() {
-  let simulations = 200; // シミュレーション回数
-  let availableMoves = getAvailableMoves();
-  if (availableMoves.length === 0) return;
-  
-  let moveWins = new Map();
-  let moveVisits = new Map();
-  for (let move of availableMoves) {
-    let key = move.row + "," + move.col;
-    moveWins.set(key, 0);
-    moveVisits.set(key, 0);
-  }
-  
-  for (let i = 0; i < simulations; i++) {
-    let move = availableMoves[Math.floor(Math.random() * availableMoves.length)];
-    let result = simulateGameAfterMove(move, aiSymbol);
-    let key = move.row + "," + move.col;
-    if (result === 1) { // 1ならAI勝利
-       moveWins.set(key, moveWins.get(key) + 1);
-    }
-    moveVisits.set(key, moveVisits.get(key) + 1);
-  }
-  
-  let bestMove = null;
-  let bestRatio = -Infinity;
-  for (let move of availableMoves) {
-    let key = move.row + "," + move.col;
-    let ratio = moveWins.get(key) / moveVisits.get(key);
-    if (ratio > bestRatio) {
-      bestRatio = ratio;
-      bestMove = move;
-    }
-  }
-  
-  if (bestMove) {
-    makeMove(bestMove.row, bestMove.col, aiSymbol);
-    if (checkWin(bestMove.row, bestMove.col, aiSymbol)) {
-      messageP.textContent = 'AIの勝ち！';
-      gameOver = true;
-    }
-  }
-}
-
-// 盤面上の空セルリストを返す
-function getAvailableMoves() {
-  let moves = [];
-  for (let i = 0; i < BOARD_SIZE; i++) {
-    for (let j = 0; j < BOARD_SIZE; j++) {
-      if (board[i][j] === null) {
-        moves.push({ row: i, col: j });
-      }
-    }
-  }
-  return moves;
-}
-
-// 現在の盤面をディープコピー
-function cloneBoard() {
-  return board.map(row => row.slice());
-}
-
-// 指定の手を打った後の状態でランダムシミュレーションを実施
-// 戻り値: 1 => AI勝利, -1 => プレイヤー勝利, 0 => 引き分け
-function simulateGameAfterMove(move, symbol) {
-  let simBoard = cloneBoard();
-  simBoard[move.row][move.col] = symbol;
-  let currentSimSymbol = symbol;
-  
-  while (true) {
-    if (checkWinSim(simBoard, move.row, move.col, symbol)) {
-      return (currentSimSymbol === aiSymbol) ? 1 : -1;
-    }
-    let moves = [];
-    for (let i = 0; i < BOARD_SIZE; i++) {
-      for (let j = 0; j < BOARD_SIZE; j++) {
-        if (simBoard[i][j] === null) {
-          moves.push({ row: i, col: j });
-        }
-      }
-    }
-    if (moves.length === 0) return 0; // 引き分け
-    
-    let randMove = moves[Math.floor(Math.random() * moves.length)];
-    simBoard[randMove.row][randMove.col] = currentSimSymbol;
-    currentSimSymbol = (currentSimSymbol === aiSymbol) ? playerSymbol : aiSymbol;
-  }
-}
-
-// シミュレーション用勝敗判定
-function checkWinSim(simBoard, row, col, symbol) {
-  const directions = [
-    { dr: 0, dc: 1 },
-    { dr: 1, dc: 0 },
-    { dr: 1, dc: 1 },
-    { dr: 1, dc: -1 }
-  ];
-  
-  for (const { dr, dc } of directions) {
-    let count = 1;
-    count += countDirectionSim(simBoard, row, col, dr, dc, symbol);
-    count += countDirectionSim(simBoard, row, col, -dr, -dc, symbol);
-    if (count >= 5) return true;
-  }
-  return false;
-}
-
-function countDirectionSim(simBoard, row, col, dr, dc, symbol) {
-  let r = row + dr;
-  let c = col + dc;
-  let count = 0;
-  while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && simBoard[r][c] === symbol) {
-    count++;
-    r += dr;
-    c += dc;
-  }
-  return count;
-}
-
-// 終局判定：誰かが勝つか、盤面が全て埋まったら
-function isTerminal() {
-  for (let i = 0; i < BOARD_SIZE; i++) {
-    for (let j = 0; j < BOARD_SIZE; j++) {
-      if (board[i][j] !== null && checkWin(i, j, board[i][j])) {
-        return true;
-      }
-    }
-  }
-  for (let i = 0; i < BOARD_SIZE; i++) {
-    for (let j = 0; j < BOARD_SIZE; j++) {
-      if (board[i][j] === null) return false;
-    }
-  }
-  return true;
-}
-
-// 盤面全体の評価（簡易版）：AI側とプレイヤー側の最大連続数の差
-function evaluateBoard() {
-  let aiScore = 0;
-  let playerScore = 0;
-  for (let i = 0; i < BOARD_SIZE; i++) {
-    for (let j = 0; j < BOARD_SIZE; j++) {
-      if (board[i][j] === aiSymbol) {
-        aiScore = Math.max(aiScore, evaluateMove(i, j, aiSymbol));
-      } else if (board[i][j] === playerSymbol) {
-        playerScore = Math.max(playerScore, evaluateMove(i, j, playerSymbol));
-      }
-    }
-  }
-  return aiScore - playerScore;
-}
-
-// 各方向の連続数評価
-function evaluateMove(row, col, symbol) {
-  let score = 0;
-  const directions = [
-    { dr: 0, dc: 1 },
-    { dr: 1, dc: 0 },
-    { dr: 1, dc: 1 },
-    { dr: 1, dc: -1 }
-  ];
-  
-  for (const { dr, dc } of directions) {
-    let count = 1;
-    count += countDirection(row, col, dr, dc, symbol);
-    count += countDirection(row, col, -dr, -dc, symbol);
-    score = Math.max(score, count);
-  }
-  return score;
-}
-
-// 指定方向の連続数を返す
-function countDirection(row, col, dr, dc, symbol) {
-  let r = row + dr;
-  let c = col + dc;
-  let count = 0;
-  while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === symbol) {
-    count++;
-    r += dr;
-    c += dc;
-  }
-  return count;
-}
-
-resetBtn.addEventListener('click', initBoard);
-initBoard();
+  for (let i = 0; i < 
