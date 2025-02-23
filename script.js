@@ -38,36 +38,43 @@ function initBoard() {
   }
 }
 
-// プレイヤークリック処理
+// プレイヤークリック処理（複数回クリック防止済み）
 function onCellClick(e) {
-  if(gameOver || currentTurn !== 'player') return;
+  if (gameOver || currentTurn !== 'player') return;
+  
+  // クリックされたらすぐに入力を無効化
+  currentTurn = 'ai';
+  
   const row = parseInt(e.target.dataset.row);
   const col = parseInt(e.target.dataset.col);
   
-  if(board[row][col] !== null) return;
+  if (board[row][col] !== null) {
+    // すでに石がある場合はターンを戻す
+    currentTurn = 'player';
+    return;
+  }
   
   makeMove(row, col, playerSymbol);
-  if(checkWin(row, col, playerSymbol)) {
+  if (checkWin(row, col, playerSymbol)) {
     messageP.textContent = 'プレイヤーの勝ち！';
     gameOver = true;
     return;
   }
   
-  currentTurn = 'ai';
-  // 少し遅延を入れてAIの手番に
+  // AI の手番へ（少し遅延を入れる）
   setTimeout(aiMove, 300);
 }
 
-// 指定位置に手を打つ
+// 指定位置に石を置く
 function makeMove(row, col, symbol) {
   board[row][col] = symbol;
   const cell = document.querySelector(`.cell[data-row='${row}'][data-col='${col}']`);
-  if(cell) cell.textContent = symbol;
+  if (cell) cell.textContent = symbol;
 }
 
 // AIの手番
 function aiMove() {
-  if(gameOver) return;
+  if (gameOver) return;
   switch (AI_MODE) {
     case 'random':
       aiRandomMove();
@@ -96,18 +103,18 @@ function aiMove() {
 // ★ レベル1：ランダム手 AI
 function aiRandomMove() {
   let emptyCells = [];
-  for(let i = 0; i < BOARD_SIZE; i++){
-    for(let j = 0; j < BOARD_SIZE; j++){
-      if(board[i][j] === null) {
-        emptyCells.push({row: i, col: j});
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      if (board[i][j] === null) {
+        emptyCells.push({ row: i, col: j });
       }
     }
   }
-  if(emptyCells.length === 0) return;
+  if (emptyCells.length === 0) return;
   
   const move = emptyCells[Math.floor(Math.random() * emptyCells.length)];
   makeMove(move.row, move.col, aiSymbol);
-  if(checkWin(move.row, move.col, aiSymbol)){
+  if (checkWin(move.row, move.col, aiSymbol)) {
     messageP.textContent = 'AIの勝ち！';
     gameOver = true;
   }
@@ -119,13 +126,13 @@ function aiSimpleMinimaxMove() {
   let bestMove = null;
   const depth = 1; // 深さ1
   
-  for(let i = 0; i < BOARD_SIZE; i++){
-    for(let j = 0; j < BOARD_SIZE; j++){
-      if(board[i][j] === null) {
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      if (board[i][j] === null) {
         board[i][j] = aiSymbol;
         let score = evaluateBoard();
         board[i][j] = null;
-        if(score > bestScore) {
+        if (score > bestScore) {
           bestScore = score;
           bestMove = { row: i, col: j };
         }
@@ -133,9 +140,9 @@ function aiSimpleMinimaxMove() {
     }
   }
   
-  if(bestMove) {
+  if (bestMove) {
     makeMove(bestMove.row, bestMove.col, aiSymbol);
-    if(checkWin(bestMove.row, bestMove.col, aiSymbol)){
+    if (checkWin(bestMove.row, bestMove.col, aiSymbol)) {
       messageP.textContent = 'AIの勝ち！';
       gameOver = true;
     }
@@ -147,23 +154,23 @@ function aiRuleBasedMove() {
   let bestScore = -Infinity;
   let bestMove = null;
   
-  for(let i = 0; i < BOARD_SIZE; i++){
-    for(let j = 0; j < BOARD_SIZE; j++){
-      if(board[i][j] === null) {
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      if (board[i][j] === null) {
         let scoreAI = evaluateMove(i, j, aiSymbol);
         let scorePlayer = evaluateMove(i, j, playerSymbol);
         let score = scoreAI + scorePlayer * 1.5;
-        if(score > bestScore) {
+        if (score > bestScore) {
           bestScore = score;
-          bestMove = {row: i, col: j};
+          bestMove = { row: i, col: j };
         }
       }
     }
   }
   
-  if(bestMove) {
+  if (bestMove) {
     makeMove(bestMove.row, bestMove.col, aiSymbol);
-    if(checkWin(bestMove.row, bestMove.col, aiSymbol)){
+    if (checkWin(bestMove.row, bestMove.col, aiSymbol)) {
       messageP.textContent = 'AIの勝ち！';
       gameOver = true;
     }
@@ -176,13 +183,13 @@ function aiMinimaxMoveDepth2() {
   let bestMove = null;
   const depth = 2;
   
-  for(let i = 0; i < BOARD_SIZE; i++){
-    for(let j = 0; j < BOARD_SIZE; j++){
-      if(board[i][j] === null) {
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      if (board[i][j] === null) {
         board[i][j] = aiSymbol;
         let score = minimax(depth - 1, false, -Infinity, Infinity);
         board[i][j] = null;
-        if(score > bestScore) {
+        if (score > bestScore) {
           bestScore = score;
           bestMove = { row: i, col: j };
         }
@@ -190,9 +197,9 @@ function aiMinimaxMoveDepth2() {
     }
   }
   
-  if(bestMove) {
+  if (bestMove) {
     makeMove(bestMove.row, bestMove.col, aiSymbol);
-    if(checkWin(bestMove.row, bestMove.col, aiSymbol)){
+    if (checkWin(bestMove.row, bestMove.col, aiSymbol)) {
       messageP.textContent = 'AIの勝ち！';
       gameOver = true;
     }
@@ -205,13 +212,13 @@ function aiMinimaxMoveDepth4() {
   let bestMove = null;
   const depth = 4;
   
-  for(let i = 0; i < BOARD_SIZE; i++){
-    for(let j = 0; j < BOARD_SIZE; j++){
-      if(board[i][j] === null) {
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      if (board[i][j] === null) {
         board[i][j] = aiSymbol;
         let score = minimax(depth - 1, false, -Infinity, Infinity);
         board[i][j] = null;
-        if(score > bestScore) {
+        if (score > bestScore) {
           bestScore = score;
           bestMove = { row: i, col: j };
         }
@@ -219,9 +226,9 @@ function aiMinimaxMoveDepth4() {
     }
   }
   
-  if(bestMove) {
+  if (bestMove) {
     makeMove(bestMove.row, bestMove.col, aiSymbol);
-    if(checkWin(bestMove.row, bestMove.col, aiSymbol)){
+    if (checkWin(bestMove.row, bestMove.col, aiSymbol)) {
       messageP.textContent = 'AIの勝ち！';
       gameOver = true;
     }
@@ -230,36 +237,36 @@ function aiMinimaxMoveDepth4() {
 
 // ミニマックス法＋αβ枝刈り（共通関数）
 function minimax(depth, isMaximizing, alpha, beta) {
-  if(depth === 0 || isTerminal()) {
+  if (depth === 0 || isTerminal()) {
     return evaluateBoard();
   }
   
-  if(isMaximizing) {
+  if (isMaximizing) {
     let maxEval = -Infinity;
-    for(let i = 0; i < BOARD_SIZE; i++){
-      for(let j = 0; j < BOARD_SIZE; j++){
-        if(board[i][j] === null) {
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      for (let j = 0; j < BOARD_SIZE; j++) {
+        if (board[i][j] === null) {
           board[i][j] = aiSymbol;
           let eval = minimax(depth - 1, false, alpha, beta);
           board[i][j] = null;
           maxEval = Math.max(maxEval, eval);
           alpha = Math.max(alpha, eval);
-          if(beta <= alpha) break;
+          if (beta <= alpha) break;
         }
       }
     }
     return maxEval;
   } else {
     let minEval = Infinity;
-    for(let i = 0; i < BOARD_SIZE; i++){
-      for(let j = 0; j < BOARD_SIZE; j++){
-        if(board[i][j] === null) {
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      for (let j = 0; j < BOARD_SIZE; j++) {
+        if (board[i][j] === null) {
           board[i][j] = playerSymbol;
           let eval = minimax(depth - 1, true, alpha, beta);
           board[i][j] = null;
           minEval = Math.min(minEval, eval);
           beta = Math.min(beta, eval);
-          if(beta <= alpha) break;
+          if (beta <= alpha) break;
         }
       }
     }
@@ -271,21 +278,21 @@ function minimax(depth, isMaximizing, alpha, beta) {
 function aiMctsMove() {
   let simulations = 200; // シミュレーション回数
   let availableMoves = getAvailableMoves();
-  if(availableMoves.length === 0) return;
+  if (availableMoves.length === 0) return;
   
   let moveWins = new Map();
   let moveVisits = new Map();
-  for(let move of availableMoves) {
+  for (let move of availableMoves) {
     let key = move.row + "," + move.col;
     moveWins.set(key, 0);
     moveVisits.set(key, 0);
   }
   
-  for(let i = 0; i < simulations; i++){
+  for (let i = 0; i < simulations; i++) {
     let move = availableMoves[Math.floor(Math.random() * availableMoves.length)];
     let result = simulateGameAfterMove(move, aiSymbol);
     let key = move.row + "," + move.col;
-    if(result === 1) { // 1ならAI勝利
+    if (result === 1) { // 1ならAI勝利
        moveWins.set(key, moveWins.get(key) + 1);
     }
     moveVisits.set(key, moveVisits.get(key) + 1);
@@ -293,30 +300,30 @@ function aiMctsMove() {
   
   let bestMove = null;
   let bestRatio = -Infinity;
-  for(let move of availableMoves) {
+  for (let move of availableMoves) {
     let key = move.row + "," + move.col;
     let ratio = moveWins.get(key) / moveVisits.get(key);
-    if(ratio > bestRatio) {
+    if (ratio > bestRatio) {
       bestRatio = ratio;
       bestMove = move;
     }
   }
   
-  if(bestMove) {
+  if (bestMove) {
     makeMove(bestMove.row, bestMove.col, aiSymbol);
-    if(checkWin(bestMove.row, bestMove.col, aiSymbol)){
+    if (checkWin(bestMove.row, bestMove.col, aiSymbol)) {
       messageP.textContent = 'AIの勝ち！';
       gameOver = true;
     }
   }
 }
 
-// 盤面上の空セルのリストを返す
+// 盤面上の空セルリストを返す
 function getAvailableMoves() {
   let moves = [];
-  for(let i = 0; i < BOARD_SIZE; i++){
-    for(let j = 0; j < BOARD_SIZE; j++){
-      if(board[i][j] === null) {
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      if (board[i][j] === null) {
         moves.push({ row: i, col: j });
       }
     }
@@ -329,26 +336,26 @@ function cloneBoard() {
   return board.map(row => row.slice());
 }
 
-// 指定の手を打った後の状態でランダムシミュレーションを行う
+// 指定の手を打った後の状態でランダムシミュレーションを実施
 // 戻り値: 1 => AI勝利, -1 => プレイヤー勝利, 0 => 引き分け
 function simulateGameAfterMove(move, symbol) {
   let simBoard = cloneBoard();
   simBoard[move.row][move.col] = symbol;
   let currentSimSymbol = symbol;
   
-  while(true) {
-    if(checkWinSim(simBoard, move.row, move.col, symbol)) {
+  while (true) {
+    if (checkWinSim(simBoard, move.row, move.col, symbol)) {
       return (currentSimSymbol === aiSymbol) ? 1 : -1;
     }
     let moves = [];
-    for(let i = 0; i < BOARD_SIZE; i++){
-      for(let j = 0; j < BOARD_SIZE; j++){
-        if(simBoard[i][j] === null) {
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      for (let j = 0; j < BOARD_SIZE; j++) {
+        if (simBoard[i][j] === null) {
           moves.push({ row: i, col: j });
         }
       }
     }
-    if(moves.length === 0) return 0; // 引き分け
+    if (moves.length === 0) return 0; // 引き分け
     
     let randMove = moves[Math.floor(Math.random() * moves.length)];
     simBoard[randMove.row][randMove.col] = currentSimSymbol;
@@ -365,11 +372,11 @@ function checkWinSim(simBoard, row, col, symbol) {
     { dr: 1, dc: -1 }
   ];
   
-  for(const {dr, dc} of directions){
+  for (const { dr, dc } of directions) {
     let count = 1;
     count += countDirectionSim(simBoard, row, col, dr, dc, symbol);
     count += countDirectionSim(simBoard, row, col, -dr, -dc, symbol);
-    if(count >= 5) return true;
+    if (count >= 5) return true;
   }
   return false;
 }
@@ -378,7 +385,7 @@ function countDirectionSim(simBoard, row, col, dr, dc, symbol) {
   let r = row + dr;
   let c = col + dc;
   let count = 0;
-  while(r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && simBoard[r][c] === symbol) {
+  while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && simBoard[r][c] === symbol) {
     count++;
     r += dr;
     c += dc;
@@ -388,16 +395,16 @@ function countDirectionSim(simBoard, row, col, dr, dc, symbol) {
 
 // 終局判定：誰かが勝つか、盤面が全て埋まったら
 function isTerminal() {
-  for(let i = 0; i < BOARD_SIZE; i++){
-    for(let j = 0; j < BOARD_SIZE; j++){
-      if(board[i][j] !== null && checkWin(i, j, board[i][j])) {
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      if (board[i][j] !== null && checkWin(i, j, board[i][j])) {
         return true;
       }
     }
   }
-  for(let i = 0; i < BOARD_SIZE; i++){
-    for(let j = 0; j < BOARD_SIZE; j++){
-      if(board[i][j] === null) return false;
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      if (board[i][j] === null) return false;
     }
   }
   return true;
@@ -407,11 +414,11 @@ function isTerminal() {
 function evaluateBoard() {
   let aiScore = 0;
   let playerScore = 0;
-  for(let i = 0; i < BOARD_SIZE; i++){
-    for(let j = 0; j < BOARD_SIZE; j++){
-      if(board[i][j] === aiSymbol) {
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      if (board[i][j] === aiSymbol) {
         aiScore = Math.max(aiScore, evaluateMove(i, j, aiSymbol));
-      } else if(board[i][j] === playerSymbol) {
+      } else if (board[i][j] === playerSymbol) {
         playerScore = Math.max(playerScore, evaluateMove(i, j, playerSymbol));
       }
     }
@@ -429,7 +436,7 @@ function evaluateMove(row, col, symbol) {
     { dr: 1, dc: -1 }
   ];
   
-  for(const {dr, dc} of directions){
+  for (const { dr, dc } of directions) {
     let count = 1;
     count += countDirection(row, col, dr, dc, symbol);
     count += countDirection(row, col, -dr, -dc, symbol);
@@ -443,7 +450,7 @@ function countDirection(row, col, dr, dc, symbol) {
   let r = row + dr;
   let c = col + dc;
   let count = 0;
-  while(r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === symbol) {
+  while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === symbol) {
     count++;
     r += dr;
     c += dc;
